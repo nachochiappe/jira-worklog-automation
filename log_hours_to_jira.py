@@ -33,13 +33,14 @@ def duration_to_seconds(duration_str):
     duration = pd.to_timedelta(duration_str)
     return int(duration.total_seconds())
 
-# Round the duration up to the nearest 15-minute increment
-def round_up_15_minutes(duration):
+# Round the duration up to the nearest specified minute increment
+def round_up_duration(duration, increment_minutes):
     total_seconds = duration.total_seconds()
-    # Calculate the number of 15-minute increments
-    increments = math.ceil(total_seconds / (15 * 60))
+    increment_seconds = increment_minutes * 60
+    # Calculate the number of increments
+    increments = math.ceil(total_seconds / increment_seconds)
     # Return the new duration
-    return pd.Timedelta(minutes=increments * 15)
+    return pd.Timedelta(seconds=increments * increment_seconds)
 
 # Load the processed data
 def load_data(start_date, end_date):
@@ -66,10 +67,10 @@ def post_worklog_to_jira(ticket_number, headers, payload):
     response_data = response.json()
     return response_data.get("timeSpent", "No timeSpent field in response")
 
-def process_data(df, headers):
+def process_data(df, headers, increment_minutes):
     # Group by Ticket Number and Date, then sum the Duration
     grouped = df.groupby(['Ticket Number', 'Date'])['Duration'].sum().reset_index()
-    grouped['Rounded Duration'] = grouped['Duration'].apply(round_up_15_minutes)
+    grouped['Rounded Duration'] = grouped['Duration'].apply(lambda x: round_up_duration(x, increment_minutes))
 
     # Loop through the grouped dataframe and post the worklog to JIRA
     for index, row in grouped.iterrows():
@@ -88,16 +89,17 @@ def process_data(df, headers):
         time_spent = post_worklog_to_jira(ticket_number, headers, payload)
         print(f"Response for {ticket_number} on {date}: Logged {time_spent}")
 
-def main(start_date, end_date):
+def main(start_date, end_date, rounded_up_minutes):
     encoded_credentials = get_credentials()
     headers = set_headers(encoded_credentials)
     df = load_data(start_date, end_date)
-    process_data(df, headers)
+    process_data(df, headers, rounded_up_minutes)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Log hours from CSV to JIRA")
     parser.add_argument('start_date', type=str, help='Start date in YYYY-MM-DD format')
     parser.add_argument('end_date', type=str, help='End date in YYYY-MM-DD format')
+    parser.add_argument('--rounded_up_minutes', type=int, default=15, help='Minutes to round up durations to (default: 15)')
     args = parser.parse_args()
     
-    main(args.start_date, args.end_date)
+    main(args.start_date, args.end_date, args.rounded_up_minutes)

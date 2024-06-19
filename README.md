@@ -19,7 +19,7 @@ Before you begin, ensure you have met the following requirements:
 
 1. **Clone the repository**:
     ```bash
-    git clone https://github.com/your-username/jira-worklog-automation.git
+    git clone https://github.com/nachochiappe/jira-worklog-automation.git
     cd jira-worklog-automation
     ```
 
